@@ -56,14 +56,14 @@
 
     /* ══ FEED ══ */
     #feed {
-        height: 100dvh; width: 100%;
+        height: 100vh; height: 100dvh; width: 100%;
         overflow-y: scroll; scroll-snap-type: y mandatory;
         scrollbar-width: none;
     }
     #feed::-webkit-scrollbar { display: none; }
 
     .slide {
-        position: relative; height: 100dvh; width: 100%;
+        position: relative; height: 100vh; height: 100dvh; width: 100%;
         scroll-snap-align: start; scroll-snap-stop: always;
         display: flex; align-items: center; justify-content: center;
         background: var(--cine-2); overflow: hidden;
@@ -405,6 +405,16 @@
             feed.style.display = 'block';
 
             iniciarObservador();
+
+            // Respaldo: en algunos navegadores/WebViews móviles, el
+            // IntersectionObserver puede tardar en confirmar que el primer
+            // slide ya es visible justo al cargar la página (por ejemplo, si
+            // el layout todavía se está asentando por la barra de
+            // direcciones dinámica). Como el primer slide SIEMPRE es visible
+            // al cargar, lo activamos manualmente aquí también — activarSlide
+            // ya es seguro de llamar más de una vez.
+            const primerSlide = feed.querySelector('.slide');
+            if (primerSlide) activarSlide(primerSlide);
         } catch (e) {
             document.getElementById('estado-cargando').style.display = 'none';
             document.getElementById('estado-error').style.display = 'flex';
