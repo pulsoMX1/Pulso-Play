@@ -122,6 +122,17 @@
     }
     .nc-chip i { font-size: 1.3rem; }
 
+    .nc-progreso-track {
+        width: 30px; height: 3px; border-radius: 3px; margin-top: 6px;
+        background: rgba(255,255,255,.25); overflow: hidden;
+    }
+    .nc-progreso-fill {
+        height: 100%; width: 0%; border-radius: 3px;
+        background: linear-gradient(90deg, var(--amarillo), var(--amarillo-brillante));
+        box-shadow: 0 0 6px rgba(245,184,0,.7);
+        transition: width .12s linear;
+    }
+
     .toast-nc {
         position: fixed; left: 50%; bottom: 14%; transform: translate(-50%, 20px);
         background: linear-gradient(135deg, #1a1a2e, #0b0b0f);
@@ -251,7 +262,10 @@
                 <p>${item.descripcion || ''}</p>
             </div>
             <div class="riel-acciones">
-                <div class="nc-chip"><i class="fa-solid fa-coins"></i><span>+${item.netcoins_recompensa}</span></div>
+                <div class="nc-chip">
+                    <i class="fa-solid fa-coins"></i><span>+${item.netcoins_recompensa}</span>
+                    <div class="nc-progreso-track"><div class="nc-progreso-fill"></div></div>
+                </div>
             </div>
             ${index === 0 ? '<div class="hint-swipe"><i class="fa-solid fa-chevron-up"></i>Desliza</div>' : ''}
         `;
@@ -331,9 +345,11 @@
     function activarSlide(slide) {
         const video = slide.querySelector('video');
         const fill = slide.querySelector('.progreso-fill');
+        const ncFill = slide.querySelector('.nc-progreso-fill');
         video.muted = !audioActivado;
         video.currentTime = 0;
         fill.style.width = '0%';
+        if (ncFill) ncFill.style.width = '0%';
 
         const attemptPlay = () => {
             const playPromise = video.play();
@@ -355,6 +371,7 @@
             if (!video.duration) return;
             const pct = Math.min((video.currentTime / video.duration) * 100, 100);
             fill.style.width = pct + '%';
+            if (ncFill) ncFill.style.width = pct + '%';
             if (pct >= 99.5) reclamarRecompensa(slide);
         };
         video.onended = () => {
