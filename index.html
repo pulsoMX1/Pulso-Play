@@ -74,7 +74,7 @@
     }
     .slide .poster-img {
         position: absolute; inset: 0; width: 100%; height: 100%;
-        object-fit: cover; z-index: 1;
+        object-fit: cover; z-index: 5;
         transition: opacity .25s ease;
     }
 
@@ -397,6 +397,9 @@
         video.onended = null;
     }
 
+    let _primerSlideEl = null;
+    let _primerSlideProtegidoHasta = 0;
+
     function iniciarObservador() {
         const feed = document.getElementById('feed');
         const observer = new IntersectionObserver((entries) => {
@@ -406,6 +409,16 @@
                     activarSlide(slide);
                     slide.querySelector('.hint-swipe')?.remove();
                 } else {
+                    // Protección especial para el primer video: justo al
+                    // cargar la página, el layout puede tardar un instante en
+                    // asentarse en algunos navegadores móviles, lo que puede
+                    // hacer que esta primera medición del observer sea
+                    // incorrecta y quiera pausar el video que acabamos de
+                    // arrancar manualmente. Lo ignoramos durante una ventana
+                    // corta de tiempo para evitar esa pausa accidental.
+                    if (slide === _primerSlideEl && Date.now() < _primerSlideProtegidoHasta) {
+                        return;
+                    }
                     desactivarSlide(slide);
                 }
             });
@@ -434,9 +447,14 @@
             feed.style.display = 'block';
 
             // Activamos el primer slide de inmediato (siempre es visible al
-            // cargar la página).
+            // cargar la página), y lo protegemos por 2.5s contra una posible
+            // pausa accidental del observer mientras el layout se asienta.
             const primerSlide = feed.querySelector('.slide');
-            if (primerSlide) activarSlide(primerSlide);
+            if (primerSlide) {
+                _primerSlideEl = primerSlide;
+                _primerSlideProtegidoHasta = Date.now() + 2500;
+                activarSlide(primerSlide);
+            }
 
             // Arrancamos el IntersectionObserver un frame después (en vez de
             // en el mismo instante). Esto es importante: si el observer hace
