@@ -189,8 +189,8 @@
 
     <div id="estado-vacio" class="estado-pantalla" style="display:none;">
         <i class="fa-solid fa-clapperboard" style="font-size:2.2rem;color:var(--amarillo);"></i>
-        <h3>Aún no hay películas</h3>
-        <p>Estamos preparando contenido nuevo hecho con IA. Vuelve pronto.</p>
+        <h3>Ya viste todo por ahora</h3>
+        <p>No hay películas nuevas para ti en este momento. Vuelve más tarde por más contenido.</p>
     </div>
 
     <div id="estado-error" class="estado-pantalla" style="display:none;">
@@ -387,7 +387,8 @@
 
     async function cargarFeed() {
         try {
-            const res = await fetch(`${EDGE_BASE}/listar-peliculas`);
+            const qs = userId ? `?uid=${encodeURIComponent(userId)}` : '';
+            const res = await fetch(`${EDGE_BASE}/listar-peliculas${qs}`);
             if (!res.ok) throw new Error('respuesta no ok');
             const peliculas = await res.json();
 
