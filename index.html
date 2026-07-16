@@ -259,6 +259,7 @@
         slide.dataset.duracion = item.duracion_segundos;
         slide.dataset.nc = item.netcoins_recompensa;
         slide.dataset.reclamado = 'false';
+        slide.dataset.activo = 'false';
 
         slide.innerHTML = `
             <video src="${item.video_url}" poster="${item.miniatura_url || ''}"
@@ -344,9 +345,44 @@
         const video = slide.querySelector('video');
         const fill = slide.querySelector('.progreso-fill');
         video.muted = !audioActivado;
-        video.currentTime = 0;
         fill.style.width = '0%';
-        video.play().catch(() => {});
+
+        const iniciarReproduccion = () => {
+            if (slide.dataset.activo !== 'true') return; // el usuario ya se deslizó a otro slide mientras cargaba
+            video.currentTime = 0;
+            video.play().catch(() => {});
+        };
+
+        slide.dataset.activo = 'true';
+
+        // Evita apilar listeners duplicados si activarSlide se llama más de
+        // una vez seguida para el mismo video antes de que termine de cargar.
+        if (video._listenerCargaPendiente) {
+            video.removeEventListener('loadeddata', video._listenerCargaPendiente);
+            video._listenerCargaPendiente = null;
+        }
+
+        if (video.readyState >= 2) {
+            // Ya tiene datos suficientes para mostrar un fotograma real: reproducir de inmediato
+            iniciarReproduccion();
+        } else {
+            // Todavía no ha cargado nada reproducible (típico en internet
+            // móvil más lento) — en vez de llamar a .play() a ciegas (lo
+            // cual hace que el navegador oculte la miniatura/poster y
+            // muestre una pantalla en negro mientras termina de cargar),
+            // esperamos a que el video avise que ya tiene el primer
+            // fotograma listo. Mientras tanto, se sigue viendo la miniatura
+            // normalmente.
+            video._listenerCargaPendiente = iniciarReproduccion;
+            video.addEventListener('loadeddata', iniciarReproduccion, { once: true });
+            // Si el video traía preload="metadata" (no la primera), forzamos
+            // que ahora sí empiece a descargar el video completo, ya que
+            // realmente lo vamos a reproducir.
+            if (video.preload !== 'auto') {
+                video.preload = 'auto';
+                video.load();
+            }
+        }
 
         video.ontimeupdate = () => {
             if (!video.duration) return;
@@ -362,6 +398,7 @@
     }
 
     function desactivarSlide(slide) {
+        slide.dataset.activo = 'false';
         const video = slide.querySelector('video');
         video.pause();
         video.ontimeupdate = null;
