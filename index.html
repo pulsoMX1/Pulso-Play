@@ -370,12 +370,26 @@
         }
 
         video.currentTime = 0;
-        // Llamamos a .play() de inmediato (sin esperar a nada): en varios
-        // navegadores móviles, la carga real de datos ('preload') solo
-        // arranca en cuanto se pide reproducir, así que esperar pasivamente
-        // podía dejar el video congelado para siempre. La miniatura de
-        // arriba se encarga de que esto se vea bien mientras tanto.
-        video.play().catch(() => {});
+        // En iOS, video.play() puede fallar sin interacción del usuario.
+        // Se intenta reproducir, pero si falla, se agrega un listener para
+        // que el toque en la pantalla inicie la reproducción.
+        const attemptPlay = () => {
+            const playPromise = video.play();
+            if (playPromise !== undefined) {
+                playPromise
+                    .then(() => {
+                        // Reproducción exitosa — remover listeners de fallback
+                        slide.removeEventListener('click', attemptPlay);
+                        document.removeEventListener('touchstart', attemptPlay);
+                    })
+                    .catch(() => {
+                        // Falló automático — esperar tap del usuario
+                        slide.addEventListener('click', attemptPlay, { once: true });
+                        document.addEventListener('touchstart', attemptPlay, { once: true });
+                    });
+            }
+        };
+        attemptPlay();
 
         video.ontimeupdate = () => {
             if (!video.duration) return;
@@ -386,7 +400,7 @@
         video.onended = () => {
             reclamarRecompensa(slide);
             video.currentTime = 0;
-            video.play().catch(() => {}); // sigue en loop hasta que el usuario deslice
+            attemptPlay(); // sigue en loop hasta que el usuario deslice
         };
     }
 
