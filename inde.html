@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="index, follow">
+<meta name="author" content="PulsoMX">
+<title>Pulso Play | Películas IA — PulsoMX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    :root {
+        --rojo: #c0152a;
+        --rojo-oscuro: #8b0f1e;
+        --amarillo: #f5b800;
+        --amarillo-brillante: #ffea00;
+        --cine: #0b0b0f;
+        --cine-2: #141419;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overscroll-behavior: none; }
+    body {
+        font-family: 'Source Sans 3', sans-serif;
+        background: var(--cine);
+        color: #fff;
+        overflow: hidden;
+    }
+
+    /* ══ HEADER FLOTANTE ══ */
+    .top-bar {
+        position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: max(14px, env(safe-area-inset-top)) 16px 30px;
+        background: linear-gradient(rgba(0,0,0,.65), transparent);
+        pointer-events: none;
+    }
+    .top-bar a, .top-bar button { pointer-events: auto; }
+    .logo {
+        font-family: 'Playfair Display', serif; font-weight: 900;
+        font-size: 1.15rem; color: #fff; text-decoration: none;
+        display: flex; align-items: center; gap: 6px; white-space: nowrap;
+        text-shadow: 0 2px 8px rgba(0,0,0,.5);
+    }
+    .logo .play-tick { color: var(--amarillo); }
+    .logo span.mx { color: var(--rojo); -webkit-text-stroke: 0.4px #fff; }
+    .icon-btn {
+        background: rgba(20,20,25,.55); border: 1px solid rgba(255,255,255,.15);
+        color: #fff; width: 38px; height: 38px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.95rem; backdrop-filter: blur(6px); cursor: pointer;
+        transition: transform .15s ease, background .15s ease;
+    }
+    .icon-btn:active { transform: scale(0.9); }
+    .icon-btn.back { text-decoration: none; }
+
+    /* ══ FEED ══ */
+    #feed {
+        height: 100dvh; width: 100%;
+        overflow-y: scroll; scroll-snap-type: y mandatory;
+        scrollbar-width: none;
+    }
+    #feed::-webkit-scrollbar { display: none; }
+
+    .slide {
+        position: relative; height: 100dvh; width: 100%;
+        scroll-snap-align: start; scroll-snap-stop: always;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--cine-2); overflow: hidden;
+    }
+    .slide video {
+        width: 100%; height: 100%; object-fit: cover;
+        background: #000;
+    }
+
+    /* Viñeta cinematográfica: oscurece hacia abajo para que el texto se lea */
+    .slide .scrim {
+        position: absolute; inset: 0; pointer-events: none;
+        background:
+            linear-gradient(to top, rgba(0,0,0,.92) 0%, rgba(0,0,0,.35) 28%, transparent 55%),
+            linear-gradient(to bottom, rgba(0,0,0,.55) 0%, transparent 22%);
+    }
+
+    /* Barra de progreso — estilo Stories, arriba del todo */
+    .progreso-track {
+        position: absolute; top: max(8px, env(safe-area-inset-top));
+        left: 12px; right: 12px; height: 3px; border-radius: 3px;
+        background: rgba(255,255,255,.25); overflow: hidden; z-index: 40;
+    }
+    .progreso-fill {
+        height: 100%; width: 0%; border-radius: 3px;
+        background: linear-gradient(90deg, var(--amarillo), var(--amarillo-brillante));
+        box-shadow: 0 0 8px rgba(245,184,0,.7);
+        transition: width .12s linear;
+    }
+
+    /* Info de la película */
+    .info-pelicula {
+        position: absolute; left: 18px; right: 84px; bottom: max(26px, env(safe-area-inset-bottom));
+        z-index: 30;
+    }
+    .tag-ia {
+        display: inline-flex; align-items: center; gap: 5px;
+        background: var(--rojo); color: #fff; font-size: 0.62rem; font-weight: 700;
+        letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px;
+        border-radius: 100px; margin-bottom: 10px;
+    }
+    .info-pelicula h2 {
+        font-family: 'Playfair Display', serif; font-weight: 900;
+        font-size: clamp(1.15rem, 4.5vw, 1.5rem); line-height: 1.2;
+        text-shadow: 0 2px 10px rgba(0,0,0,.6); margin-bottom: 6px;
+    }
+    .info-pelicula p {
+        font-size: 0.86rem; line-height: 1.4; color: rgba(255,255,255,.85);
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        overflow: hidden; text-shadow: 0 1px 6px rgba(0,0,0,.5);
+    }
+
+    /* Riel de acciones a la derecha */
+    .riel-acciones {
+        position: absolute; right: 12px; bottom: max(30px, env(safe-area-inset-bottom));
+        z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 18px;
+    }
+    .riel-acciones .icon-btn { width: 44px; height: 44px; font-size: 1.05rem; }
+    .nc-chip {
+        display: flex; flex-direction: column; align-items: center; gap: 2px;
+        color: var(--amarillo); font-weight: 800; font-size: 0.68rem; text-align: center;
+        text-shadow: 0 1px 4px rgba(0,0,0,.6);
+    }
+    .nc-chip i { font-size: 1.3rem; }
+
+    /* Toast de recompensa */
+    .toast-nc {
+        position: fixed; left: 50%; bottom: 14%; transform: translate(-50%, 20px);
+        background: linear-gradient(135deg, #1a1a2e, #0b0b0f);
+        border: 1px solid rgba(245,184,0,.5);
+        color: #fff; padding: 12px 22px; border-radius: 100px;
+        display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 0.92rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,.5); z-index: 200;
+        opacity: 0; pointer-events: none; transition: opacity .35s ease, transform .35s ease;
+    }
+    .toast-nc.visible { opacity: 1; transform: translate(-50%, 0); }
+    .toast-nc i { color: var(--amarillo); font-size: 1.15rem; }
+    .toast-nc.error { border-color: rgba(239,68,68,.5); }
+    .toast-nc.error i { color: #ef4444; }
+
+    /* Hint de deslizar (solo primer slide) */
+    .hint-swipe {
+        position: absolute; left: 50%; bottom: max(70px, calc(env(safe-area-inset-bottom) + 60px));
+        transform: translateX(-50%); z-index: 30; text-align: center;
+        color: rgba(255,255,255,.85); font-size: 0.72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: .06em;
+        animation: flotar 1.8s ease-in-out infinite;
+        pointer-events: none;
+    }
+    .hint-swipe i { display: block; font-size: 1.1rem; margin-bottom: 4px; }
+    @keyframes flotar { 0%,100% { transform: translate(-50%, 0); opacity: .5; } 50% { transform: translate(-50%, -8px); opacity: 1; } }
+
+    /* Loader / estados */
+    .estado-pantalla {
+        position: fixed; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 14px; text-align: center;
+        padding: 24px; background: var(--cine); z-index: 60;
+    }
+    .estado-pantalla i.fa-spinner { font-size: 2rem; color: var(--amarillo); }
+    .estado-pantalla h3 { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 900; }
+    .estado-pantalla p { color: rgba(255,255,255,.65); font-size: 0.88rem; max-width: 280px; }
+
+    @media (prefers-reduced-motion: reduce) {
+        .hint-swipe { animation: none; }
+    }
+</style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <a id="link-inicio" href="index.html" class="logo">
+            <span class="play-tick">▶</span> PULSO <span class="mx">PLAY</span>
+        </a>
+        <button id="btn-mute" class="icon-btn" aria-label="Activar sonido">
+            <i class="fa-solid fa-volume-xmark"></i>
+        </button>
+    </div>
+
+    <div id="estado-cargando" class="estado-pantalla">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+        <p>Cargando películas...</p>
+    </div>
+
+    <div id="estado-vacio" class="estado-pantalla" style="display:none;">
+        <i class="fa-solid fa-clapperboard" style="font-size:2.2rem;color:var(--amarillo);"></i>
+        <h3>Aún no hay películas</h3>
+        <p>Estamos preparando contenido nuevo hecho con IA. Vuelve pronto.</p>
+    </div>
+
+    <div id="estado-error" class="estado-pantalla" style="display:none;">
+        <i class="fa-solid fa-triangle-exclamation" style="font-size:2.2rem;color:#ef4444;"></i>
+        <h3>No se pudo cargar</h3>
+        <p>Revisa tu conexión e intenta de nuevo.</p>
+    </div>
+
+    <div id="feed" style="display:none;"></div>
+
+    <div id="toast-nc" class="toast-nc">
+        <i class="fa-solid fa-coins"></i>
+        <span id="toast-nc-texto">+40 NetCoins</span>
+    </div>
+
+<script>
+    const EDGE_BASE = 'https://meiwuluwrdjszxeyoqtt.supabase.co/functions/v1';
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('uid');
+
+    if (userId) {
+        document.getElementById('link-inicio').href = `index.html?uid=${userId}`;
+    }
+
+    let audioActivado = false;
+    const btnMute = document.getElementById('btn-mute');
+    btnMute.addEventListener('click', () => {
+        audioActivado = !audioActivado;
+        btnMute.innerHTML = audioActivado
+            ? '<i class="fa-solid fa-volume-high"></i>'
+            : '<i class="fa-solid fa-volume-xmark"></i>';
+        document.querySelectorAll('#feed video').forEach(v => v.muted = !audioActivado);
+    });
+
+    // ── Placeholder para "noticias en video" ────────────────────────
+    // Aún no existen los videos de noticias. Cuando los tengas, llena
+    // este arreglo (o cámbialo por un fetch real) con objetos del mismo
+    // formato que una película, y se van a intercalar solos en el feed
+    // sin tocar nada más.
+    function obtenerNoticiasVideoPlaceholder() {
+        return []; // <- cuando tengas videos de noticias, regrésalos aquí
+    }
+
+    function construirFeedMezclado(peliculas) {
+        const noticias = obtenerNoticiasVideoPlaceholder();
+        const items = peliculas.map(p => ({ ...p, tipo: 'pelicula' }));
+        if (!noticias.length) return items;
+
+        // Intercala 1 noticia cada 4 películas
+        const mezclado = [];
+        let iNoticia = 0;
+        items.forEach((item, i) => {
+            mezclado.push(item);
+            if ((i + 1) % 4 === 0 && iNoticia < noticias.length) {
+                mezclado.push({ ...noticias[iNoticia], tipo: 'noticia' });
+                iNoticia++;
+            }
+        });
+        return mezclado;
+    }
+
+    function crearSlide(item, index) {
+        const slide = document.createElement('div');
+        slide.className = 'slide';
+        slide.dataset.id = item.id;
+        slide.dataset.duracion = item.duracion_segundos;
+        slide.dataset.nc = item.netcoins_recompensa;
+        slide.dataset.reclamado = 'false';
+
+        slide.innerHTML = `
+            <video src="${item.video_url}" poster="${item.miniatura_url || ''}"
+                   playsinline muted preload="${index === 0 ? 'auto' : 'metadata'}"></video>
+            <div class="scrim"></div>
+            <div class="progreso-track"><div class="progreso-fill"></div></div>
+            <div class="info-pelicula">
+                <span class="tag-ia"><i class="fa-solid fa-wand-magic-sparkles"></i> ${item.tipo === 'noticia' ? 'Noticia' : 'Película IA'}</span>
+                <h2>${item.titulo}</h2>
+                <p>${item.descripcion || ''}</p>
+            </div>
+            <div class="riel-acciones">
+                <div class="nc-chip"><i class="fa-solid fa-coins"></i><span>+${item.netcoins_recompensa}</span></div>
+            </div>
+            ${index === 0 ? '<div class="hint-swipe"><i class="fa-solid fa-chevron-up"></i>Desliza</div>' : ''}
+        `;
+        return slide;
+    }
+
+    async function yaFueVista(peliculaId) {
+        if (!userId) return false;
+        try {
+            const res = await fetch(`${EDGE_BASE}/verificar-pelicula`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: userId, peliculaId })
+            });
+            const data = await res.json();
+            return !!data.ya_vista;
+        } catch (e) { return false; }
+    }
+
+    function mostrarToast(texto, esError = false) {
+        const toast = document.getElementById('toast-nc');
+        const span = document.getElementById('toast-nc-texto');
+        span.textContent = texto;
+        toast.classList.toggle('error', esError);
+        toast.classList.add('visible');
+        clearTimeout(window._toastTimer);
+        window._toastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);
+    }
+
+    async function reclamarRecompensa(slide) {
+        if (slide.dataset.reclamado === 'true') return;
+        slide.dataset.reclamado = 'true'; // evita doble intento aunque el video haga loop
+
+        if (!userId) {
+            mostrarToast('Inicia sesión desde NetGamer para ganar NC', true);
+            return;
+        }
+
+        const peliculaId = slide.dataset.id;
+
+        const yaVista = await yaFueVista(peliculaId);
+        if (yaVista) return; // ya la había cobrado antes, no mostramos nada
+
+        try {
+            const res = await fetch(`${EDGE_BASE}/recompensar-pelicula`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: userId, peliculaId })
+            });
+            const data = await res.json();
+
+            if (res.ok && data.ok) {
+                mostrarToast(`+${data.nc} NetCoins acreditadas`);
+            } else {
+                const mensajes = {
+                    'ya_vista': null, // no molestar si ya la había visto
+                    'limite_diario': '¡Límite diario de películas alcanzado!',
+                    'usuario_invalido': 'Usuario no reconocido',
+                    'pelicula_invalida': 'Esta película ya no está disponible'
+                };
+                const msg = mensajes[data.error];
+                if (msg) mostrarToast(msg, true);
+            }
+        } catch (e) {
+            mostrarToast('Error de red al acreditar NC', true);
+        }
+    }
+
+    function activarSlide(slide) {
+        const video = slide.querySelector('video');
+        const fill = slide.querySelector('.progreso-fill');
+        video.muted = !audioActivado;
+        video.currentTime = 0;
+        fill.style.width = '0%';
+        video.play().catch(() => {});
+
+        video.ontimeupdate = () => {
+            if (!video.duration) return;
+            const pct = Math.min((video.currentTime / video.duration) * 100, 100);
+            fill.style.width = pct + '%';
+            if (pct >= 99.5) reclamarRecompensa(slide);
+        };
+        video.onended = () => {
+            reclamarRecompensa(slide);
+            video.currentTime = 0;
+            video.play().catch(() => {}); // sigue en loop hasta que el usuario deslice
+        };
+    }
+
+    function desactivarSlide(slide) {
+        const video = slide.querySelector('video');
+        video.pause();
+        video.ontimeupdate = null;
+        video.onended = null;
+    }
+
+    function iniciarObservador() {
+        const feed = document.getElementById('feed');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const slide = entry.target;
+                if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+                    activarSlide(slide);
+                    slide.querySelector('.hint-swipe')?.remove();
+                } else {
+                    desactivarSlide(slide);
+                }
+            });
+        }, { root: feed, threshold: [0, 0.6, 1] });
+
+        feed.querySelectorAll('.slide').forEach(slide => observer.observe(slide));
+    }
+
+    async function cargarFeed() {
+        try {
+            const res = await fetch(`${EDGE_BASE}/listar-peliculas`);
+            if (!res.ok) throw new Error('respuesta no ok');
+            const peliculas = await res.json();
+
+            document.getElementById('estado-cargando').style.display = 'none';
+
+            if (!Array.isArray(peliculas) || peliculas.length === 0) {
+                document.getElementById('estado-vacio').style.display = 'flex';
+                return;
+            }
+
+            const items = construirFeedMezclado(peliculas);
+            const feed = document.getElementById('feed');
+            items.forEach((item, i) => feed.appendChild(crearSlide(item, i)));
+            feed.style.display = 'block';
+
+            iniciarObservador();
+        } catch (e) {
+            document.getElementById('estado-cargando').style.display = 'none';
+            document.getElementById('estado-error').style.display = 'flex';
+        }
+    }
+
+    // Navegación con flechas de teclado (útil en desktop)
+    document.addEventListener('keydown', (e) => {
+        const feed = document.getElementById('feed');
+        if (e.key === 'ArrowDown') feed.scrollBy({ top: window.innerHeight, behavior: 'smooth' });
+        if (e.key === 'ArrowUp') feed.scrollBy({ top: -window.innerHeight, behavior: 'smooth' });
+    });
+
+    cargarFeed();
+</script>
+
+</body>
+</html>
