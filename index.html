@@ -160,43 +160,6 @@
     .hint-swipe i { display: block; font-size: 1.1rem; margin-bottom: 4px; }
     @keyframes flotar { 0%,100% { transform: translate(-50%, 0); opacity: .5; } 50% { transform: translate(-50%, -8px); opacity: 1; } }
 
-    /* ══ Animación de Manita ══ */
-    .hand-hint {
-        position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
-        z-index: 100; pointer-events: none;
-        display: flex; flex-direction: column; align-items: center; gap: 20px;
-        opacity: 0; transition: opacity .4s ease;
-    }
-    .hand-hint.visible { opacity: 1; }
-
-    .hand-icon {
-        font-size: 3.5rem; color: rgba(255,255,255,.95);
-        filter: drop-shadow(0 4px 12px rgba(0,0,0,.6));
-        animation: swipe-hand 1.2s ease-in-out infinite;
-        transform-origin: center;
-        transform: rotate(180deg);
-    }
-    @keyframes swipe-hand {
-        0% { transform: rotate(180deg) translateY(-20px) scaleY(.8); opacity: .6; }
-        50% { transform: rotate(180deg) translateY(20px) scaleY(1); opacity: 1; }
-        100% { transform: rotate(180deg) translateY(-20px) scaleY(.8); opacity: .6; }
-    }
-
-    .hand-text {
-        font-size: 0.95rem; font-weight: 700; letter-spacing: .08em;
-        color: rgba(255,255,255,.9); text-transform: uppercase;
-        text-shadow: 0 2px 8px rgba(0,0,0,.7);
-        animation: pulse-text 1.2s ease-in-out infinite;
-    }
-    @keyframes pulse-text {
-        0%, 100% { opacity: .7; transform: scale(1); }
-        50% { opacity: 1; transform: scale(1.05); }
-    }
-
-    .hand-hint-wrapper {
-        display: flex; flex-direction: column; align-items: center; gap: 8px;
-    }
-
     .estado-pantalla {
         position: fixed; inset: 0; display: flex; flex-direction: column;
         align-items: center; justify-content: center; gap: 14px; text-align: center;
@@ -334,16 +297,6 @@
 
     <div id="feed" style="display:none;"></div>
 
-    <!-- Hand Hint Animation -->
-    <div id="hand-hint" class="hand-hint">
-        <div class="hand-hint-wrapper">
-            <div class="hand-icon">
-                <i class="fas fa-hand-paper"></i>
-            </div>
-            <div class="hand-text">Desliza para ver más</div>
-        </div>
-    </div>
-
     <div id="ad-slot-socialbar"></div>
 
     <div id="toast-nc" class="toast-nc">
@@ -374,7 +327,7 @@
         return [];
     }
 
-    const SANDBOX_ADS = 'allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation';
+    const SANDBOX_ADS = 'allow-popups allow-scripts allow-same-origin allow-top-navigation-by-user-activation allow-popups-to-escape-sandbox allow-forms';
 
     function crearIframeAd(srcdocHtml, cssTexto) {
         const ifr = document.createElement('iframe');
@@ -475,7 +428,6 @@
         }
 
         slide.className = 'slide';
-        slide.dataset.index = index;
         slide.dataset.id = item.id;
         slide.dataset.duracion = item.duracion_segundos;
         slide.dataset.nc = item.netcoins_recompensa;
@@ -623,11 +575,6 @@
             reclamarRecompensa(slide);
             video.currentTime = 0;
             attemptPlay();
-            
-            // Mostrar la manita solo si es la primera película
-            if (slide.dataset.index === '0') {
-                mostrarManita();
-            }
         };
     }
 
@@ -642,37 +589,6 @@
         video.pause();
         video.ontimeupdate = null;
         video.onended = null;
-    }
-
-    // ══ Funciones de Manita ══
-    let handHintActive = false;
-    
-    function mostrarManita() {
-        const handHint = document.getElementById('hand-hint');
-        handHint.classList.add('visible');
-        handHintActive = true;
-    }
-
-    function ocultarManita() {
-        const handHint = document.getElementById('hand-hint');
-        handHint.classList.remove('visible');
-        handHintActive = false;
-    }
-
-    function setupHandHintListener() {
-        const feed = document.getElementById('feed');
-        let lastScrollPos = 0;
-
-        feed.addEventListener('scroll', () => {
-            if (!handHintActive) return;
-            
-            const currentScrollPos = feed.scrollTop;
-            // Si se detecta cambio en scroll (desliz), ocultar la manita
-            if (Math.abs(currentScrollPos - lastScrollPos) > 5) {
-                ocultarManita();
-                lastScrollPos = currentScrollPos;
-            }
-        }, { passive: true });
     }
 
     function iniciarObservador() {
@@ -737,7 +653,62 @@
     });
 
     cargarFeed();
-    setupHandHintListener();
+</script>
+
+<!-- Forzar sandbox en iframes de anuncios inyectados dinámicamente (evita redirecciones) -->
+<script>
+(function() {
+    var AD_SANDBOX = 'allow-popups allow-scripts allow-same-origin allow-top-navigation-by-user-activation allow-popups-to-escape-sandbox allow-forms';
+    var AD_DOMAINS = ['highperformanceformat.com', 'effectivecpmnetwork.com'];
+
+    function isAdIframe(iframe) {
+        var src = iframe.src || '';
+        return AD_DOMAINS.some(function(d) { return src.indexOf(d) !== -1; }) || !iframe.id || iframe.id.indexOf('iframe-') === -1;
+    }
+
+    function applySandbox(iframe) {
+        if (!iframe.hasAttribute('sandbox')) {
+            iframe.setAttribute('sandbox', AD_SANDBOX);
+        }
+    }
+
+    // Eliminar cualquier elemento tipo Social Bar / popunder que un anuncio intente inyectar
+    // directamente en el <body> principal (fuera del iframe sandboxeado), que es lo que
+    // suele causar redirecciones al entrar a la página.
+    function limpiarInyeccionesAdsterraEnBody() {
+        document.querySelectorAll(
+            'body > div[style*="position: fixed"], body > div[style*="position:fixed"],' +
+            'body > iframe[style*="position: fixed"], body > iframe[style*="position:fixed"],' +
+            'div[id*="social-bar"], div[class*="social-bar"],' +
+            'div[id*="socialbar"], div[class*="socialbar"],' +
+            'div[id*="aso-"], div[id*="adsterra"]'
+        ).forEach(function(el) {
+            // No tocar nuestros propios contenedores de anuncios
+            if (el.id === 'ad-slot-banner-top' || el.id === 'ad-slot-socialbar') return;
+            el.remove();
+        });
+    }
+
+    // Observar nodos nuevos agregados al documento principal
+    var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType !== 1) return;
+                if (node.tagName === 'IFRAME') applySandbox(node);
+                if (node.querySelectorAll) node.querySelectorAll('iframe').forEach(applySandbox);
+            });
+        });
+        limpiarInyeccionesAdsterraEnBody();
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Aplicar a iframes ya existentes al cargar
+    window.addEventListener('load', function() {
+        document.querySelectorAll('iframe').forEach(applySandbox);
+        limpiarInyeccionesAdsterraEnBody();
+    });
+})();
 </script>
 
 </body>
