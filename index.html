@@ -508,7 +508,8 @@
     }
 
     function activarSlide(slide) {
-        // --- AQUÍ REFRESCAMOS LOS ANUNCIOS FLOTANTES EN CADA SWIPE ---
+        // Refrescar banners la primera vez que entra + cada swipe inicial
+        // El intervalo de 40 segundos se encarga de mantenerlos actualizados automáticamente después
         refrescarBannerYSocialBar();
 
         if (slide.dataset.tipo === 'anuncio') {
@@ -615,6 +616,11 @@
             // Ya no invocamos insertarAnunciosNativos(); desde aquí porque 'activarSlide' 
             // se encargará de inyectar y recargar la publicidad dinámicamente.
             iniciarObservador();
+
+            // Refrescar anuncios automáticamente cada 40 segundos (no en cada swipe)
+            setInterval(() => {
+                refrescarBannerYSocialBar();
+            }, 40000);
         } catch (e) {
             console.error('Error cargando feed:', e);
             document.getElementById('estado-cargando').style.display = 'none';
