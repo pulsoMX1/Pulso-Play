@@ -271,6 +271,38 @@
     }
     .fb-ad-cta:active { background: #1B5BB5; }
 
+    /* ══ Animación de Mano Deslizante ══ */
+    .hand-swipe-hint {
+        position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        z-index: 99; pointer-events: none;
+        display: flex; flex-direction: column; align-items: center; gap: 24px;
+        opacity: 0; transition: opacity .4s cubic-bezier(.23,.1,.32,1.2);
+    }
+    .hand-swipe-hint.visible { opacity: 1; }
+
+    .hand-icon-swipe {
+        font-size: 4rem; color: rgba(255,255,255,.95);
+        filter: drop-shadow(0 6px 16px rgba(0,0,0,.7));
+        animation: swipe-up-hand 1.4s cubic-bezier(.34,.1,.68,.55) infinite;
+        transform-origin: center bottom;
+    }
+    @keyframes swipe-up-hand {
+        0% { transform: translateY(20px) scaleY(.75); opacity: .5; }
+        50% { transform: translateY(-15px) scaleY(1); opacity: 1; }
+        100% { transform: translateY(20px) scaleY(.75); opacity: .5; }
+    }
+
+    .hand-text-swipe {
+        font-size: 1rem; font-weight: 700; letter-spacing: .1em;
+        color: rgba(255,255,255,.92); text-transform: uppercase;
+        text-shadow: 0 3px 12px rgba(0,0,0,.8);
+        animation: pulse-hand-text 1.4s cubic-bezier(.34,.1,.68,.55) infinite;
+    }
+    @keyframes pulse-hand-text {
+        0%, 100% { opacity: .65; transform: scale(.98); }
+        50% { opacity: 1; transform: scale(1.02); }
+    }
+
     /* ══ Banner fijo debajo de la top-bar ══ */
     .ad-banner-top {
         position: fixed; left: 0; right: 0; top: max(58px, calc(env(safe-area-inset-top) + 44px));
@@ -310,6 +342,14 @@
     <div class="ad-banner-top" id="ad-slot-banner-top"></div>
 
     <div id="feed" style="display:none;"></div>
+
+    <!-- Hand Swipe Animation -->
+    <div id="hand-swipe-hint" class="hand-swipe-hint">
+        <div class="hand-icon-swipe">
+            <i class="fas fa-hand-paper"></i>
+        </div>
+        <div class="hand-text-swipe">Desliza para ver más videos</div>
+    </div>
 
     <div id="toast-nc" class="toast-nc">
         <i class="fa-solid fa-coins"></i>
@@ -430,6 +470,7 @@
         }
 
         slide.className = 'slide';
+        slide.dataset.index = index;
         slide.dataset.id = item.id;
         slide.dataset.duracion = item.duracion_segundos;
         slide.dataset.nc = item.netcoins_recompensa;
@@ -482,6 +523,35 @@
         toast.classList.add('visible');
         clearTimeout(window._toastTimer);
         window._toastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);
+    }
+
+    let handHintActive = false;
+
+    function mostrarManoSwipe() {
+        const handHint = document.getElementById('hand-swipe-hint');
+        handHint.classList.add('visible');
+        handHintActive = true;
+    }
+
+    function ocultarManoSwipe() {
+        const handHint = document.getElementById('hand-swipe-hint');
+        handHint.classList.remove('visible');
+        handHintActive = false;
+    }
+
+    function setupHandSwipeListener() {
+        const feed = document.getElementById('feed');
+        let lastScrollPos = 0;
+
+        feed.addEventListener('scroll', () => {
+            if (!handHintActive) return;
+            
+            const currentScrollPos = feed.scrollTop;
+            if (Math.abs(currentScrollPos - lastScrollPos) > 3) {
+                ocultarManoSwipe();
+                lastScrollPos = currentScrollPos;
+            }
+        }, { passive: true });
     }
 
     async function reclamarRecompensa(slide) {
@@ -580,6 +650,11 @@
             slide.dataset.visto = 'true';
             video.currentTime = 0;
             attemptPlay();
+            
+            // Mostrar mano solo si es el primer video
+            if (slide.dataset.index === '0') {
+                mostrarManoSwipe();
+            }
         };
     }
 
@@ -635,6 +710,7 @@
             // Ya no invocamos insertarAnunciosNativos(); desde aquí porque 'activarSlide' 
             // se encargará de inyectar y recargar la publicidad dinámicamente.
             iniciarObservador();
+            setupHandSwipeListener();
 
             // Cargar banners UNA SOLA VEZ al inicio
             refrescarBannerYSocialBar();
